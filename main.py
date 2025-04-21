@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import os
 import time
 import socket
@@ -13,7 +10,6 @@ import logging
 from datetime import datetime
 from threading import Thread
 
-# Configure logging
 logging.basicConfig(
     filename='network_monitor.log',
     level=logging.INFO,
@@ -29,21 +25,19 @@ class AdvancedNetworkMonitor:
             "wikipedia.org",
             "yahoo.com"
         ]
-        self.ping_threshold = 100  # Alert threshold for ping (ms)
-        self.packet_loss_threshold = 5  # Alert threshold for packet loss (%)
+        self.ping_threshold = 100
+        self.packet_loss_threshold = 5
         self.history = []
         self.alert_count = 0
         
-        # Create folder to store data
         os.makedirs('network_data', exist_ok=True)
     
     def get_network_interfaces(self):
-        """Get network card information"""
         interfaces_info = []
         
         for interface, addrs in psutil.net_if_addrs().items():
             for addr in addrs:
-                if addr.family == socket.AF_INET:  # IPv4
+                if addr.family == socket.AF_INET:
                     interfaces_info.append({
                         "interface": interface,
                         "ip": addr.address,
@@ -54,7 +48,6 @@ class AdvancedNetworkMonitor:
         return interfaces_info
     
     def get_network_stats(self):
-        """Get network traffic statistics"""
         stats = psutil.net_io_counters()
         return {
             "bytes_sent": stats.bytes_sent,
@@ -68,20 +61,17 @@ class AdvancedNetworkMonitor:
         }
     
     def ping_host(self, host, count=4):
-        """Ping test with complete information"""
         param = '-n' if platform.system().lower() == 'windows' else '-c'
         command = ['ping', param, str(count), host]
         
         try:
             output = subprocess.check_output(command).decode('utf-8')
             
-            # Extract average ping
             if platform.system().lower() == 'windows':
                 avg_ping = float(output.split('Average = ')[1].split('ms')[0].strip())
             else:
                 avg_ping = float(output.split('rtt min/avg/max/mdev = ')[1].split('/')[1])
             
-            # Extract packet loss percentage
             if platform.system().lower() == 'windows':
                 packet_loss = int(output.split('(')[1].split('%')[0])
             else:
@@ -101,11 +91,10 @@ class AdvancedNetworkMonitor:
             }
     
     def check_website_status(self, website):
-        """Check the status of a website"""
         try:
             start_time = time.time()
             response = requests.get(f"http://{website}", timeout=5)
-            response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+            response_time = (time.time() - start_time) * 1000
             
             return {
                 "status": response.status_code,
@@ -123,7 +112,6 @@ class AdvancedNetworkMonitor:
             }
     
     def trace_route(self, host):
-        """Run traceroute for a host"""
         command = ['tracert' if platform.system().lower() == 'windows' else 'traceroute', host]
         
         try:
@@ -140,7 +128,6 @@ class AdvancedNetworkMonitor:
             }
     
     def check_dns(self, domain):
-        """Check DNS for a domain"""
         try:
             ip = socket.gethostbyname(domain)
             return {
@@ -155,7 +142,6 @@ class AdvancedNetworkMonitor:
             }
     
     def analyze_network_health(self, ping_result):
-        """Analyze network health based on ping results"""
         if not ping_result["success"]:
             return {
                 "status": "critical",
@@ -180,27 +166,20 @@ class AdvancedNetworkMonitor:
         }
     
     def collect_data(self):
-        """Collect network data"""
         timestamp = datetime.now().isoformat()
         
-        # Network card information
         interfaces = self.get_network_interfaces()
         
-        # Network traffic statistics
         network_stats = self.get_network_stats()
         
-        # Ping test
         ping_result = self.ping_host("8.8.8.8")
         
-        # Check website status
         websites_status = {}
         for website in self.websites:
             websites_status[website] = self.check_website_status(website)
         
-        # Analyze network health
         health_analysis = self.analyze_network_health(ping_result)
         
-        # Save data
         data = {
             "timestamp": timestamp,
             "interfaces": interfaces,
@@ -212,20 +191,16 @@ class AdvancedNetworkMonitor:
         
         self.history.append(data)
         
-        # Limit history to 100 points
         if len(self.history) > 100:
             self.history.pop(0)
         
-        # Save data to file
         with open(f'network_data/network_data_{datetime.now().strftime("%Y%m%d")}.json', 'a') as f:
             f.write(json.dumps(data) + '\n')
         
-        # Check alerts
         if health_analysis["status"] != "good":
             self.alert_count += 1
             logging.warning(f"Network alert: {health_analysis['message']}")
             
-            # Diagnose problem if there are 3 consecutive alerts
             if self.alert_count >= 3:
                 self.diagnose_network_issues()
         else:
@@ -234,15 +209,12 @@ class AdvancedNetworkMonitor:
         return data
     
     def diagnose_network_issues(self):
-        """Diagnose network problems"""
         logging.info("Diagnosing network issues...")
         
-        # DNS test
         dns_result = self.check_dns("google.com")
         if not dns_result["success"]:
             logging.error("DNS problem: Unable to resolve domain name")
         
-        # Traceroute test
         trace_result = self.trace_route("8.8.8.8")
         if not trace_result["success"]:
             logging.error("Network routing problem")
@@ -251,12 +223,10 @@ class AdvancedNetworkMonitor:
             with open(f'network_data/traceroute_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt', 'w') as f:
                 f.write(trace_result["output"])
         
-        # Check network cards
         interfaces = self.get_network_interfaces()
         if not interfaces:
             logging.error("No network card found with IP address")
         
-        # Check error statistics
         stats = self.get_network_stats()
         if stats["errin"] > 0 or stats["errout"] > 0:
             logging.error(f"Network errors: Input={stats['errin']}, Output={stats['errout']}")
@@ -265,14 +235,12 @@ class AdvancedNetworkMonitor:
             logging.error(f"Lost packets: Input={stats['dropin']}, Output={stats['dropout']}")
     
     def display_text_info(self, data):
-        """Display network text information"""
         os.system('cls' if platform.system().lower() == 'windows' else 'clear')
         
         print("=" * 60)
         print(f"Advanced Network Monitoring - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 60)
         
-        # Show network health status
         health = data["health_analysis"]
         health_status = {
             "good": "🟢 Good",
@@ -283,8 +251,6 @@ class AdvancedNetworkMonitor:
         print(f"\nNetwork status: {health_status.get(health['status'], health['status'])}")
         print(f"Message: {health['message']}")
         
-        # Display network card information
-        # Display network card information
         print("\nNetwork card information:")
         print("-" * 60)
         for interface in data["interfaces"]:
@@ -294,7 +260,6 @@ class AdvancedNetworkMonitor:
             print(f"Broadcast: {interface['broadcast']}")
             print("-" * 30)
         
-        # Display network traffic statistics
         stats = data["network_stats"]
         print("\nNetwork traffic statistics:")
         print("-" * 60)
@@ -307,7 +272,6 @@ class AdvancedNetworkMonitor:
         print(f"Lost input packets: {stats['dropin']}")
         print(f"Lost output packets: {stats['dropout']}")
         
-        # Display ping results
         ping = data["ping_result"]
         print("\nPing results to 8.8.8.8:")
         print("-" * 60)
@@ -317,7 +281,6 @@ class AdvancedNetworkMonitor:
         else:
             print(f"Ping failed: {ping.get('error', 'Unknown error')}")
         
-        # Show website status
         print("\nWebsite status:")
         print("-" * 60)
         for website, status in data["websites_status"].items():
@@ -331,7 +294,6 @@ class AdvancedNetworkMonitor:
         print("\nMonitoring... (Press Ctrl+C to exit)")
     
     def generate_report(self):
-        """Generate report from collected data"""
         if not self.history:
             return "No data available for reporting."
         
@@ -341,7 +303,6 @@ class AdvancedNetworkMonitor:
         report.append("=" * 80)
         report.append("")
         
-        # Calculate average ping
         avg_pings = []
         for data in self.history:
             if data["ping_result"]["success"]:
@@ -353,7 +314,6 @@ class AdvancedNetworkMonitor:
             max_ping = max(avg_pings)
             report.append(f"Average ping: {avg_ping:.2f} ms (Minimum: {min_ping:.2f} ms, Maximum: {max_ping:.2f} ms)")
         
-        # Calculate website access percentage
         website_access = {}
         for website in self.websites:
             access_count = 0
@@ -369,7 +329,6 @@ class AdvancedNetworkMonitor:
         for website, percentage in website_access.items():
             report.append(f"{website}: {percentage:.2f}%")
         
-        # Check network health status
         health_counts = {"good": 0, "warning": 0, "critical": 0}
         for data in self.history:
             status = data["health_analysis"]["status"]
@@ -381,7 +340,6 @@ class AdvancedNetworkMonitor:
                 percentage = (count / len(self.history)) * 100
                 report.append(f"{status}: {count} ({percentage:.2f}%)")
         
-        # Save report
         report_text = "\n".join(report)
         report_file = f'network_data/report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
         
@@ -391,32 +349,26 @@ class AdvancedNetworkMonitor:
         return report_text
     
     def run(self):
-        """Run monitoring"""
         try:
             logging.info("Starting network monitoring")
             print("Starting network monitoring...")
             
             while True:
-                # Collect data
                 data = self.collect_data()
                 
-                # Display text information
                 self.display_text_info(data)
                 
-                # Generate report every hour
                 current_time = datetime.now()
                 if current_time.minute == 0 and current_time.second < 10:
                     report = self.generate_report()
                     logging.info("Hourly report generated")
                 
-                # Wait for next measurement
                 time.sleep(10)
                 
         except KeyboardInterrupt:
             print("\nMonitoring stopped.")
             logging.info("Network monitoring stopped")
             
-            # Generate final report
             print("\nGenerating final report...")
             report = self.generate_report()
             print(f"Final report saved to file.")
